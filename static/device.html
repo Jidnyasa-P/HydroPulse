@@ -1,0 +1,17 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Virtual purifier</title>
+<style>body{margin:0;background:#F3FAFA;color:#0B2A3C;font:20px/1.5 "Segoe UI",system-ui,sans-serif;padding:20px;max-width:520px;margin:auto}h1{font-size:30px;margin:6px 0}
+.card{background:#fff;border:2px solid #CFE3E6;border-radius:20px;padding:18px;margin-top:14px}button{font:inherit;font-weight:700;width:100%;min-height:56px;border:0;border-radius:14px;background:#0B6E7F;color:#fff;margin-top:10px}button.b{background:#E8412C}button.g{background:#fff;color:#0B2A3C;border:2px solid #CFE3E6}
+input[type=range]{width:100%}.big{font-size:56px;font-weight:800;line-height:1.1}</style></head><body>
+<h1>Virtual purifier</h1><div>This phone is acting as a connected Intellon, sending readings to the HydroPulse server.</div>
+<div class="card"><label>Device name <input id="id" style="font:inherit;width:100%;padding:8px"></label><label style="display:block;margin-top:12px">Water saltiness: <b id="tv">900</b> ppm<input id="tds" type="range" min="150" max="1400" value="900" oninput="tv.textContent=this.value"></label>
+<button id="go" onclick="go()">Start</button><button class="b" onclick="bad=1">Send a bad sensor reading</button><button class="g" onclick="tank=15">Tanker water arrives</button></div>
+<div class="card"><div>HydroPulse says</div><div class="big" id="out">–</div><div id="st"></div></div>
+<script>
+const $=i=>document.getElementById(i);$('id').value='phone-'+Math.floor(Math.random()*900+100);let on=0,f=0,d=0,bad=0,tank=0,t;
+const tcf=x=>1+.03*(x-25),ndp=x=>(6-.00075*x)/(6-.00075*500),g=()=>{let s=0;for(let i=0;i<6;i++)s+=Math.random();return (s-3)/Math.sqrt(.5)};
+async function tick(){d++;const temp=25+8*Math.sin(2*Math.PI*d/365)+g(),m=tank>0?1.7:1;tank=Math.max(0,tank-1);const tds=$('tds').value*m*(1+.04*g());
+f+=.0011*tds/1000*(1+.1*g());const flow=(1-f)*tcf(temp)*ndp(tds)*(1+.04*g());
+const msg={device_id:$('id').value,tds_in:bad?9999:Math.round(tds),temp_c:+temp.toFixed(1),fill_s_per_l:+(30/flow).toFixed(2),locality:'phones'};bad=0;
+try{const r=await(await fetch('/api/telemetry',{method:'POST',body:JSON.stringify(msg)})).json();$('out').textContent=r.rul==null?'Safe backup':Math.round(r.rul)+' days';$('st').textContent=r.status+' · simulated day '+d}catch(e){$('st').textContent='Cannot reach server'}}
+function go(){on=!on;$('go').textContent=on?'Pause':'Start';clearInterval(t);if(on)t=setInterval(tick,400)}
+</script></body></html>
