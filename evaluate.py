@@ -31,7 +31,11 @@ def make_env(seed, real=False):
 
 def simulate(H, law, policy, WL=0, capture=False):
     n = len(H); f, l, lw, lc, pend = [0.] * n, [0.] * n, [0.] * n, [0.] * n, [-1] * n
-    est = [Estimator() for _ in H]; S = dict(fail=0, plan=0, util=0., cdays=0, cres=0, days=[[] for _ in H]); info = [dict(alert=None, fail=None, rul=[], ex=None, flag=None, feat=[]) for _ in H]
+    est = [Estimator() for _ in H]
+    if capture:
+        import numpy as np; cap = np.zeros((n, DAYS, 19), "float32"); car = np.zeros((n, DAYS), "float32")
+        for e_ in est: e_.want_x = True
+    S = dict(fail=0, plan=0, util=0., cdays=0, cres=0, days=[[] for _ in H]); info = [dict(alert=None, fail=None, rul=[], ex=None, flag=None, feat=[]) for _ in H]
     for d in range(DAYS):
         ev, rat = {}, [None] * n
         if policy in ("hydro", "none"):
@@ -51,7 +55,7 @@ def simulate(H, law, policy, WL=0, capture=False):
                 cf = (res['pcar'] > .7) if res.get('pcar') is not None else (rat[i] is not None and carbon_flag(rat[i], peers))
                 if policy == "none":
                     inf = info[i]; inf["rul"].append(res["rul"])
-                    if capture and d % 7 == 0 and d >= 60 and res["ok"]: inf["feat"].append((d, est[i].features(res["rul_phys"]), int(lc[i] >= h["Lc"])))
+                    if capture: cap[i, d] = est[i].last_x; car[i, d] = lc[i] >= h["Lc"]
                     if st == "ORDER NOW" and inf["alert"] is None: inf["alert"] = d
                     if f[i] >= .15 and inf["fail"] is None: inf["fail"] = d
                     if lc[i] >= h["Lc"] and inf["ex"] is None: inf["ex"] = d
@@ -71,6 +75,7 @@ def simulate(H, law, policy, WL=0, capture=False):
                 else: S["plan"] += 1; S["util"] += f[i] / .15
                 S["days"][i].append(d); f[i] = l[i] = lw[i] = 0.; pend[i] = -1
                 if policy == "hydro": est[i] = Estimator()
+    if capture: S["cap"], S["car"] = cap, car
     return S, info
 
 def visits(md, lpd, bundle):

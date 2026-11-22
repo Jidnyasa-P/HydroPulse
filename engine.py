@@ -18,6 +18,39 @@ def _mlp(f):
         x = [sum(w * v for w, v in zip(row, x)) + b for row, b in zip(L["W"], L["b"])]
         if i < len(MODEL["layers"]) - 1: x = [max(0., v) for v in x]
     return x
+try: import numpy as np
+except Exception: np = None
+class GruRunner:
+    """Streaming GRU + heads (same layout as torch.nn.GRU). One small state vector per purifier, one step per day."""
+    def __init__(s, M):
+        s.M, s.H = M, len(M["bhh"]) // 3
+        c = (lambda a: np.array(a, dtype="float64")) if np else (lambda a: a)
+        s.Wih, s.Whh, s.bih, s.bhh, s.mean, s.std = (c(M[k]) for k in ("Wih", "Whh", "bih", "bhh", "mean", "std"))
+        s.heads = [(c(L["W"]), c(L["b"])) for L in M["head"]]
+    def init(s): return np.zeros(s.H) if np else [0.] * s.H
+    def step(s, h, x):
+        H = s.H
+        if np:
+            x = np.clip((np.array(x) - s.mean) / s.std, -8, 8); gi = s.Wih @ x + s.bih; gh = s.Whh @ h + s.bhh
+            r = 1 / (1 + np.exp(-(gi[:H] + gh[:H]))); z = 1 / (1 + np.exp(-(gi[H:2*H] + gh[H:2*H]))); n = np.tanh(gi[2*H:] + r * gh[2*H:])
+            return (1 - z) * n + z * h
+        x = [max(-8., min(8., (a - m) / d)) for a, m, d in zip(x, s.mean, s.std)]
+        mv = lambda W, v, b: [sum(w * t for w, t in zip(row, v)) + bb for row, bb in zip(W, b)]
+        gi, gh = mv(s.Wih, x, s.bih), mv(s.Whh, h, s.bhh); sg = lambda v: 1 / (1 + math.exp(-max(-30., min(30., v))))
+        r = [sg(gi[i] + gh[i]) for i in range(H)]; z = [sg(gi[H+i] + gh[H+i]) for i in range(H)]
+        n = [math.tanh(gi[2*H+i] + r[i] * gh[2*H+i]) for i in range(H)]
+        return [(1 - z[i]) * n[i] + z[i] * h[i] for i in range(H)]
+    def out(s, h):
+        v = h
+        for i, (W, b) in enumerate(s.heads):
+            v = (W @ v + b) if np else [sum(w * t for w, t in zip(row, v)) + bb for row, bb in zip(W, b)]
+            if i < len(s.heads) - 1: v = np.maximum(v, 0) if np else [max(0., t) for t in v]
+        return [float(t) for t in v]
+_R = [None, None]
+def _runner():
+    if MODEL is None or MODEL.get("type") != "gru": return None
+    if _R[0] is not MODEL: _R[0], _R[1] = MODEL, GruRunner(MODEL)
+    return _R[1]
 tcf = lambda temp: 1 + .03 * (temp - 25)                    # permeate flow moves ~3% per degree C
 ndp = lambda tds: (6 - .00075 * tds) / (6 - .00075 * 500)   # osmotic back-pressure from feed TDS
 observe_norm = lambda raw, temp, tds: raw / (tcf(temp) * ndp(tds))
@@ -35,13 +68,22 @@ class Estimator:
     def __init__(s, tds0=None):
         s.E, s.sxx, s.sxy, s.var, s.dex, s.n, s.kl, s.kf, s.ks = 0., 0., 0., 1e-3, None, 0, K0, K0, K0
         s.h, s.hf, s.r, s.tds0, s.ema, s.slope, s.k, s.rc = 1.0, 1.0, 0., tds0, None, -.001, K0, 0
-        s.rec, s.pcar, s._o = [], None, None
+        s.rec, s.pcar, s._o, s._hs, s._rp, s.want_x, s.last_x = [], None, None, None, 100., False, None
     def k_ratio(s): return (s.ks / max(s.kl, 1e-6) if s.rc >= 20 else 1.0) if s.n >= 60 else None   # sustained recent speed-up vs long-run
     def features(s, rul_phys):
         """Fixed-order feature vector for the learned model (the last entry must stay rul_phys)."""
         r = s.rec or [s.h]; m = sum(r) / len(r); sd = math.sqrt(sum((v - m) ** 2 for v in r) / len(r)); half = len(r) // 2 or 1
         tr = (sum(r[half:]) / max(1, len(r) - half) - sum(r[:half]) / half) / max(1, half)
-        return [s.h, s.hf, s.kl * 1e3, s.ks * 1e3, s.k * 1e3, s.ks / max(s.kl, 1e-6), s.E / 100, s.dex or 0., (s.ema or 0.) / 1e3, math.sqrt(s.var), s.n / 365, m - s.h, sd * 10, tr * 1e3, rul_phys / 100]
+        return [s.h, s.hf, s.kl * 1e3, s.ks * 1e3, s.k * 1e3, max(0., min(10., s.ks / max(s.kl, 1e-4))), s.E / 100, s.dex or 0., (s.ema or 0.) / 1e3, math.sqrt(s.var), s.n / 365, m - s.h, sd * 10, max(-20., min(20., tr * 1e3)), rul_phys / 100]
+    def _step(s, norm, tds, event, ok, rp):
+        """Build the 19-number daily input and advance the streaming GRU (if a GRU model is loaded)."""
+        R = _runner()
+        if R is None and not s.want_x: return None
+        x = s.features(rp) + [norm if ok else 0., 0. if ok else 1., 1. if event else 0., min(3., max(.3, tds / s.ema)) if ok and s.ema else 1.]
+        s.last_x = x
+        if R is None: return None
+        if s._hs is None: s._hs = R.init()
+        s._hs = R.step(s._hs, x); return R.out(s._hs)
     def update(s, norm, tds, event=False):
         ok = norm is not None and tds is not None and 5 <= tds <= 3000 and .2 < norm < 2.5    # plausibility guard
         s.n += 1
@@ -61,13 +103,22 @@ class Estimator:
         elif ok: s.hf += s.r * .5                                # water event: hold, do not learn
         hp = 1 - s.kl * s.E; w = max(0., 1 - abs(s.hf - hp) / .03); s.h = min(1., max(.3, w * hp + (1 - w) * s.hf))   # precise physics level when it agrees with the filter
         s.rc = s.rc + 1 if s.ks > 1.4 * s.kl else 0
-        if not ok: return dict(status="FALLBACK", rul=None, lo=None, hi=None, slope=s.slope, h=s.h, ok=False)
+        if not ok:
+            s._step(norm, tds, event, False, s._rp)
+            return dict(status="FALLBACK", rul=None, lo=None, hi=None, slope=s.slope, h=s.h, ok=False)
         s.k = max(s.kl, .5 * (s.kl + s.ks)); s.slope = -s.k * dex
         g = lambda f: min(365, max(0, (s.h - FAIL) / (max(s.k * f, 1e-5) * dex)))
         rul = g(1); rul_phys = rul; fl, fh = band(rul); lo, hi = rul * fl, min(365, rul * fh); s.pcar = None
-        if MODEL and s.n >= 60:
+        s._rp = rul_phys; o = s._step(norm, tds, event, True, rul_phys)
+        if o is not None:                                        # streaming GRU: calibrated range + carbon probability
+            if s.n >= 60:
+                s.pcar = 1 / (1 + math.exp(-max(-30, min(30, o[3]))))
+                if rul_phys < 150:
+                    off = MODEL["off"][0 if rul_phys < 30 else 1 if rul_phys < 90 else 2]; sp = lambda v: math.log1p(math.exp(-abs(v))) + max(v, 0)
+                    lo, rul, hi = sorted(min(365., math.expm1(max(0., v))) for v in (o[0] - sp(o[1]) + off[0], o[0], o[0] + sp(o[2]) + off[1]))
+        elif MODEL and "layers" in MODEL and s.n >= 60:          # older snapshot network
             if rul_phys < 150 or s.n % 5 == 0 or s._o is None: s._o = _mlp(s.features(rul_phys))
             o = s._o; s.pcar = 1 / (1 + math.exp(-max(-30, min(30, o[3]))))
             if rul_phys < 150:
-                q = sorted(min(365., math.expm1(max(0., v))) for v in (o[0] + MODEL["off"][0], o[1], o[2] + MODEL["off"][1])); lo, rul, hi = q
+                lo, rul, hi = sorted(min(365., math.expm1(max(0., v))) for v in (o[0] + MODEL["off"][0], o[1], o[2] + MODEL["off"][1]))
         return dict(status="ORDER NOW" if lo <= ALERT else "WATCH" if lo <= 45 else "HEALTHY", rul=rul, lo=lo, hi=hi, slope=s.slope, h=s.h, ok=True, rul_phys=rul_phys, pcar=s.pcar)
