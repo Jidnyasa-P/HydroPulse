@@ -1,0 +1,408 @@
+{
+ "rows": [
+  {
+   "name": "Surprise failures vs old counter: fewer by",
+   "target": "40% fewer",
+   "vals": [
+    94,
+    86,
+    91
+   ],
+   "ok": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "name": "Surprise failures vs tuned counter: fewer by",
+   "target": "40% fewer",
+   "vals": [
+    69,
+    65,
+    57
+   ],
+   "ok": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "name": "Warned at least 14 days before failure",
+   "target": "90% of failures",
+   "vals": [
+    88.8,
+    77.5,
+    92.5
+   ],
+   "ok": [
+    false,
+    false,
+    true
+   ]
+  },
+  {
+   "name": "True failure date is never earlier than our safe date",
+   "target": "90% of the time",
+   "vals": [
+    89,
+    79,
+    91
+   ],
+   "ok": [
+    false,
+    false,
+    true
+   ]
+  },
+  {
+   "name": "Stated range holds the true days left",
+   "target": "80% of the time",
+   "vals": [
+    80,
+    76,
+    76
+   ],
+   "ok": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "name": "False alarms (warned over 45 days too early)",
+   "target": "Below 5%",
+   "vals": [
+    38.5,
+    24.0,
+    58.4
+   ],
+   "ok": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "name": "Filter life used before planned change",
+   "target": "85% or more",
+   "vals": [
+    65.5,
+    66.2,
+    58.8
+   ],
+   "ok": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "name": "Fewer technician visits (one-visit plan)",
+   "target": "20% fewer",
+   "vals": [
+    18,
+    20,
+    19
+   ],
+   "ok": [
+    false,
+    true,
+    false
+   ]
+  },
+  {
+   "name": "Spent carbon filter caught within 90 days",
+   "target": "70% of cases",
+   "vals": [
+    28,
+    19,
+    24
+   ],
+   "ok": [
+    false,
+    false,
+    false
+   ]
+  }
+ ],
+ "detail": {
+  "standard": {
+   "counter": {
+    "fail": 496,
+    "plan": 47,
+    "util": 58.5,
+    "cdays": 3363,
+    "cres": 315
+   },
+   "weighted": {
+    "fail": 91,
+    "plan": 698,
+    "util": 64.0,
+    "cdays": 3363,
+    "cres": 315
+   },
+   "hydro": {
+    "fail": 28,
+    "plan": 769,
+    "util": 65.5,
+    "cdays": 2755,
+    "cres": 3878
+   },
+   "visits": {
+    "separate": 1525,
+    "bundled": 1258
+   },
+   "prog": {
+    "n": 80,
+    "lead14": 88.8,
+    "lead_med": 36.0,
+    "e14_in15": 19.1,
+    "e14_in25": 20.6,
+    "e14_med": 70,
+    "e30_in25": 30.8,
+    "false": 38.5,
+    "carbon_hit": 28,
+    "carbon_false": 58,
+    "cov_in": 80,
+    "cov_safe": 89
+   }
+  },
+  "harder": {
+   "counter": {
+    "fail": 649,
+    "plan": 38,
+    "util": 60.4,
+    "cdays": 3363,
+    "cres": 315
+   },
+   "weighted": {
+    "fail": 262,
+    "plan": 566,
+    "util": 70.8,
+    "cdays": 3363,
+    "cres": 315
+   },
+   "hydro": {
+    "fail": 92,
+    "plan": 841,
+    "util": 66.2,
+    "cdays": 2827,
+    "cres": 3641
+   },
+   "visits": {
+    "separate": 1661,
+    "bundled": 1326
+   },
+   "prog": {
+    "n": 80,
+    "lead14": 77.5,
+    "lead_med": 27.0,
+    "e14_in15": 12.3,
+    "e14_in25": 21.5,
+    "e14_med": 80,
+    "e30_in25": 25.4,
+    "false": 24.0,
+    "carbon_hit": 19,
+    "carbon_false": 68,
+    "cov_in": 76,
+    "cov_safe": 79
+   }
+  },
+  "stress": {
+   "counter": {
+    "fail": 551,
+    "plan": 43,
+    "util": 68.8,
+    "cdays": 3873,
+    "cres": 317
+   },
+   "weighted": {
+    "fail": 120,
+    "plan": 730,
+    "util": 64.6,
+    "cdays": 3873,
+    "cres": 317
+   },
+   "hydro": {
+    "fail": 52,
+    "plan": 918,
+    "util": 58.8,
+    "cdays": 3062,
+    "cres": 3795
+   },
+   "visits": {
+    "separate": 1702,
+    "bundled": 1373
+   },
+   "prog": {
+    "n": 80,
+    "lead14": 92.5,
+    "lead_med": 47.5,
+    "e14_in15": 9.4,
+    "e14_in25": 20.3,
+    "e14_med": 75,
+    "e30_in25": 31.7,
+    "false": 58.4,
+    "carbon_hit": 24,
+    "carbon_false": 50,
+    "cov_in": 76,
+    "cov_safe": 91
+   }
+  }
+ },
+ "weighted_limit": 1500,
+ "alert_days": 14,
+ "calibration": {
+  "lo": [
+   0.455,
+   0.557,
+   0.598
+  ],
+  "hi": [
+   4.633,
+   2.058,
+   1.668
+  ]
+ },
+ "curve": {
+  "6": {
+   "standard": [
+    118,
+    83.7,
+    603
+   ],
+   "harder": [
+    236,
+    84.6,
+    740
+   ],
+   "stress": [
+    158,
+    79.5,
+    696
+   ]
+  },
+  "8": {
+   "standard": [
+    79,
+    79.6,
+    640
+   ],
+   "harder": [
+    190,
+    81.6,
+    769
+   ],
+   "stress": [
+    111,
+    74.8,
+    746
+   ]
+  },
+  "10": {
+   "standard": [
+    58,
+    76.2,
+    675
+   ],
+   "harder": [
+    131,
+    77.1,
+    812
+   ],
+   "stress": [
+    81,
+    69.5,
+    815
+   ]
+  },
+  "14": {
+   "standard": [
+    28,
+    65.5,
+    797
+   ],
+   "harder": [
+    92,
+    66.2,
+    933
+   ],
+   "stress": [
+    52,
+    58.8,
+    970
+   ]
+  },
+  "18": {
+   "standard": [
+    25,
+    62.6,
+    835
+   ],
+   "harder": [
+    79,
+    63.2,
+    972
+   ],
+   "stress": [
+    45,
+    55.6,
+    1034
+   ]
+  },
+  "22": {
+   "standard": [
+    14,
+    53.6,
+    986
+   ],
+   "harder": [
+    47,
+    54.0,
+    1136
+   ],
+   "stress": [
+    28,
+    47.8,
+    1217
+   ]
+  },
+  "28": {
+   "standard": [
+    6,
+    41.1,
+    1299
+   ],
+   "harder": [
+    22,
+    42.3,
+    1451
+   ],
+   "stress": [
+    15,
+    38.8,
+    1522
+   ]
+  },
+  "36": {
+   "standard": [
+    2,
+    29.9,
+    1803
+   ],
+   "harder": [
+    9,
+    31.3,
+    1945
+   ],
+   "stress": [
+    8,
+    30.4,
+    1967
+   ]
+  }
+ },
+ "seconds": 27
+}
