@@ -1,4 +1,4 @@
-# HydroPulse –  Final Validation & Reliability Report
+# HydroPulse –  Validation & Reliability Report
  
 **Project:** Smart RO Filter Life Prediction & Monitoring System  
 **Report scope:** Baseline validation, real-data suitability, 10-seed benchmark, stress testing, and soak test
